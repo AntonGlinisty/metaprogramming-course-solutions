@@ -9,7 +9,7 @@ constexpr size_t dynamic_extent = std::numeric_limits<size_t>::max();
 template <size_t Extent>
 class extent_storage {
   public:
-    constexpr extent_storage(size_t size) noexcept {}
+    constexpr extent_storage(size_t) noexcept {}
     static constexpr size_t size() noexcept { return Extent; }
 };
 
@@ -24,7 +24,7 @@ class extent_storage<dynamic_extent> {
 };
 
 template <typename T, size_t Extent = dynamic_extent>
-class span {
+class Span {
   public:
     // Member Types
     using element_type = T;
@@ -46,54 +46,54 @@ class span {
 
   public:
     // Member functions
-    constexpr span() noexcept {}
+    constexpr Span() noexcept {}
 
     template <typename It>
     explicit(extent != dynamic_extent)
-    constexpr span(It first, size_type count) : storage(Extent) {
+    constexpr Span(It first, size_type count) : storage(Extent) {
         data() = std::to_address(first);
     }
 
     template <typename It, typename End>
     requires (!std::is_convertible_v<End, size_type>)
     explicit(extent != dynamic_extent)
-    constexpr span(It first, End last) : storage(static_cast<size_type>(last - first)) {
+    constexpr Span(It first, End last) : storage(static_cast<size_type>(last - first)) {
         data() = std::to_address(first);
     }
 
     template <size_t N>
-    constexpr span(std::type_identity_t<element_type> (&arr)[N]) noexcept
-        : span(static_cast<pointer>(arr), N) {}
+    constexpr Span(std::type_identity_t<element_type> (&arr)[N]) noexcept
+        : Span(static_cast<pointer>(arr), N) {}
 
 
     template <typename U, size_t N>
-    constexpr span(std::array<U, N>& arr) noexcept
-        :span(static_cast<pointer>(arr.data()),  N) {}
+    constexpr Span(std::array<U, N>& arr) noexcept
+        :Span(static_cast<pointer>(arr.data()),  N) {}
 
     template <typename U, size_t N>
-    constexpr span(const std::array<U, N>& arr) noexcept
-        :span(static_cast<const pointer>(arr.data()), N) {}
+    constexpr Span(const std::array<U, N>& arr) noexcept
+        :Span(static_cast<const pointer>(arr.data()), N) {}
 
     template <typename R>
     explicit(extent != dynamic_extent)
-    constexpr span(R&& range) 
-    : span(std::ranges::data(range), std::ranges::size(range)) {}
+    constexpr Span(R&& range) 
+    : Span(std::ranges::data(range), std::ranges::size(range)) {}
 
     explicit(extent != dynamic_extent)
-    constexpr span(std::initializer_list<value_type> il) noexcept
-    : span(il.begin(), il.end()) {}    
+    constexpr Span(std::initializer_list<value_type> il) noexcept
+    : Span(il.begin(), il.end()) {}    
 
     template <typename U, size_t N>
     explicit(extent != dynamic_extent && N == dynamic_extent)
-    constexpr span(const std::span<U, N>& source) noexcept : storage(source.size()) {
+    constexpr Span(const Span<U, N>& source) noexcept : storage(source.size()) {
         data() = source.data();
     }
 
-    constexpr span(const span& other) noexcept = default;
+    constexpr Span(const Span& other) noexcept = default;
 
-    constexpr span& operator=(const span& other) noexcept = default;
+    constexpr Span& operator=(const Span& other) noexcept = default;
 
-    ~span() = default;
+    ~Span() = default;
 
 
     // Iterators
@@ -171,21 +171,21 @@ class span {
 
     // Subviews
     template <size_t Count>
-    constexpr span<element_type, Count> first() const {
-        return span<element_type, Count>(data(), Count);
+    constexpr Span<element_type, Count> first() const {
+        return Span<element_type, Count>(data(), Count);
     }
 
-    constexpr span<element_type, dynamic_extent> first(size_type Count) const {
-        return span<element_type, dynamic_extent>(data(), Count);
+    constexpr Span<element_type, dynamic_extent> first(size_type Count) const {
+        return Span<element_type, dynamic_extent>(data(), Count);
     }
 
     template <size_t Count>
-    constexpr span<element_type, Count> last() const {
-        return span<element_type, Count>(data() + size() - Count, Count);
+    constexpr Span<element_type, Count> last() const {
+        return Span<element_type, Count>(data() + size() - Count, Count);
     }
 
-    constexpr span<element_type, dynamic_extent> last(size_type Count) const {
-        return span<element_type, dynamic_extent>(data() + size() - Count, Count);
+    constexpr Span<element_type, dynamic_extent> last(size_type Count) const {
+        return Span<element_type, dynamic_extent>(data() + size() - Count, Count);
     }
 
     template <size_t Offset, size_t Count>
@@ -200,14 +200,14 @@ class span {
     }
     
     template <size_t Offset, size_t Count = dynamic_extent>
-    constexpr span<element_type, subspan_extent<Offset, Count>> subspan() const {
+    constexpr Span<element_type, subspan_extent<Offset, Count>> subspan() const {
         if constexpr (Count == dynamic_extent) {
-            return span<element_type, size() - Count>(data() + Offset, size() - Count);
+            return Span<element_type, size() - Count>(data() + Offset, size() - Count);
         }
-        return span<element_type, Count>(data() + Offset, Count);
+        return Span<element_type, Count>(data() + Offset, Count);
     }
 
-    constexpr span<element_type, dynamic_extent> subspan(size_type Offset, size_type Count = dynamic_extent) const {
+    constexpr Span<element_type, dynamic_extent> subspan(size_type Offset, size_type Count = dynamic_extent) const {
         if (Count == dynamic_extent) {
             return {data() + Offset, size() - Offset};
         }
@@ -220,12 +220,12 @@ class span {
 };
 
 template <typename T, size_t N>
-span<const std::byte, N == dynamic_extent ? dynamic_extent : N * sizeof(T)> as_bytes(span<T, N> s) noexcept {
+Span<const std::byte, N == dynamic_extent ? dynamic_extent : N * sizeof(T)> as_bytes(Span<T, N> s) noexcept {
     return {reinterpret_cast<const std::byte*>(s.data(), s.size_bytes()), s.size_bytes()};
 }
 
 template <typename T, size_t N>
-span<std::byte, N == dynamic_extent ? dynamic_extent : N * sizeof(T)> as_writable_bytes(span<T, N> s) noexcept {
+Span<std::byte, N == dynamic_extent ? dynamic_extent : N * sizeof(T)> as_writable_bytes(Span<T, N> s) noexcept {
     return {reinterpret_cast<std::byte*>(s.data(), s.size_bytes()), s.size_bytes()};
 }
 
