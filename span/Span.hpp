@@ -50,7 +50,7 @@ class Span {
 
     template <typename It>
     explicit(extent != dynamic_extent)
-    constexpr Span(It first, size_type count) : storage(Extent) {
+    constexpr Span(It first, size_type count) : storage(count) {
         data() = std::to_address(first);
     }
 
@@ -131,11 +131,11 @@ class Span {
 
 
     // Element access
-    constexpr reference front() const {
+    constexpr reference Front() const {
         return *data();
     }
 
-    constexpr reference back() const {
+    constexpr reference Back() const {
         return *(data() + size() - 1);
     }
 
