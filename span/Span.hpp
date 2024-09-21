@@ -1,4 +1,4 @@
-#include "lib/assert.hpp"
+#include <iostream>
 #include <ranges>
 #include <span>
 #include <numeric>
@@ -8,6 +8,8 @@
 #include <type_traits>
 #include <vector>
 #include <limits>
+#include <list>
+#include <cassert>
 
 constexpr size_t dynamic_extent = std::numeric_limits<size_t>::max();
 
@@ -51,59 +53,74 @@ class Span {
 
   public:
     // Member functions
-    constexpr Span() noexcept {}
+    constexpr Span() noexcept
+    requires (Extent == 0 || Extent == dynamic_extent)
+    : storage(0) {}
 
-    template <typename It>
-    explicit(extent != dynamic_extent)
+    template <std::contiguous_iterator It>
+    explicit(Extent != dynamic_extent)
     constexpr Span(It first, size_type count)
     : data_(std::to_address(first)), storage(count) {
-        if constexpr (extent != dynamic_extent) {
-            MPC_VERIFY(count == extent);
+        if constexpr (Extent != dynamic_extent) {
+            MPC_VERIFY(Extent == count);
         }
     }
 
-    template <typename It, typename End>
+    template <std::contiguous_iterator It, std::sized_sentinel_for<It> End>
     requires (!std::is_convertible_v<End, size_type>)
-    explicit(extent != dynamic_extent)
-    constexpr Span(It first, End last)
-    : data_(std::to_address(first)), storage(static_cast<size_type>(last - first)) {
-        if constexpr (extent != dynamic_extent) {
-            MPC_VERIFY(last - first == extent);
+    explicit(Extent != dynamic_extent)
+    constexpr Span(It first, End last) noexcept(noexcept(last - first))
+    : data_(std::to_address(first)), storage(last - first) {
+        if constexpr (Extent != dynamic_extent) {
+            MPC_VERIFY(Extent == last - first);
         }
     }
 
     template <size_t N>
+    requires (Extent == dynamic_extent || Extent == N)
     constexpr Span(std::type_identity_t<element_type> (&arr)[N]) noexcept
         : Span(static_cast<pointer>(arr), N) {}
 
 
     template <typename U, size_t N>
+    requires (Extent == dynamic_extent || Extent == N)
     constexpr Span(std::array<U, N>& arr) noexcept
         : Span(static_cast<pointer>(arr.data()),  N) {}
 
     template <typename U, size_t N>
+    requires (Extent == dynamic_extent || Extent == N)
     constexpr Span(const std::array<U, N>& arr) noexcept
         : Span(static_cast<const pointer>(arr.data()), N) {}
 
     template <typename R>
+    requires (std::ranges::contiguous_range<R> && std::ranges::sized_range<R>)
+    && (std::ranges::borrowed_range<R> || std::is_const_v<element_type>)
+	&& (!std::is_array_v<std::remove_cvref_t<R>>)
     explicit(extent != dynamic_extent)
     constexpr Span(R&& range)
     : Span(std::ranges::data(range), std::ranges::size(range)) {
         if constexpr (extent != dynamic_extent) {
-            MPC_VERIFY(std::ranges::size(range) == extent);
+            MPC_VERIFY(Extent == std::ranges::size(range));
         }
     }
 
-    explicit(extent != dynamic_extent)
+    explicit(Extent != dynamic_extent)
     constexpr Span(std::initializer_list<value_type> il) noexcept
-    : Span(il.begin(), il.end()) {}    
+    requires (std::is_const_v<element_type>)
+    : Span(il.begin(), il.end()) {
+        if constexpr (Extent != dynamic_extent) {
+            MPC_VERIFY(Extent == il.size());
+        }
+    }    
 
     template <typename U, size_t N>
-    explicit(extent != dynamic_extent && N == dynamic_extent)
+    requires (Extent == dynamic_extent || N == dynamic_extent || Extent == N)
+    && (std::__is_array_convertible<element_type, U>::value)
+    explicit(Extent != dynamic_extent && N == dynamic_extent)
     constexpr Span(const Span<U, N>& source) noexcept
     : data_(source.data()), storage(source.size()) {
-        if constexpr (extent != dynamic_extent) {
-            MPC_VERIFY(source.size() == extent);
+        if constexpr (Extent != dynamic_extent) {
+            MPC_VERIFY(Extent == source.size());
         }
     }
 
@@ -150,10 +167,12 @@ class Span {
 
     // Element access
     constexpr reference Front() const {
+        MPC_VERIFY(!empty());
         return *data();
     }
 
     constexpr reference Back() const {
+        MPC_VERIFY(!empty());
         return *(data() + size() - 1);
     }
 
@@ -165,6 +184,7 @@ class Span {
     }
 
     constexpr reference operator[](size_type idx) const {
+        MPC_VERIFY(idx < size());
         return data()[idx];
     }
 
@@ -198,6 +218,7 @@ class Span {
     // Subviews
     template <size_t Count>
     constexpr Span<element_type, Count> First() const {
+        MPC_VERIFY(Count <= size());
         return Span<element_type, Count>(data(), Count);
     }
 
@@ -230,16 +251,20 @@ class Span {
     
     template <size_t Offset, size_t Count = dynamic_extent>
     constexpr Span<element_type, subspan_extent<Offset, Count>> subspan() const {
+        MPC_VERIFY(Offset <= size());
         if constexpr (Count == dynamic_extent) {
-            return Span<element_type, size() - Count>(data() + Offset, size() - Count);
+            return Span<element_type, subspan_extent<Offset, Count>>(data() + Offset, size() - Offset);
         }
-        return Span<element_type, Count>(data() + Offset, Count);
+        MPC_VERIFY(Count <= size() - Offset);
+        return Span<element_type, subspan_extent<Offset, Count>>(data() + Offset, Count);
     }
 
     constexpr Span<element_type, dynamic_extent> subspan(size_type Offset, size_type Count = dynamic_extent) const {
+        MPC_VERIFY(Offset <= size());
         if (Count == dynamic_extent) {
             return {data() + Offset, size() - Offset};
         }
+        MPC_VERIFY(Count <= size() - Offset);
         return {data() + Offset, Count};
     }
 
