@@ -1,17 +1,14 @@
-#include <iostream>
-#include <ranges>
-#include <span>
-#include <numeric>
-#include <concepts>
 #include <cstdlib>
+#include <concepts>
+#include <limits>
+#include <numeric>
 #include <iterator>
 #include <type_traits>
-#include <vector>
-#include <limits>
-#include <list>
-#include <cassert>
+#include <ranges>
 
-constexpr size_t dynamic_extent = std::numeric_limits<size_t>::max();
+using std::dynamic_extent;
+using std::conditional_t;
+using std::remove_reference_t;
 
 template <size_t Extent>
 class extent_storage {
@@ -118,9 +115,9 @@ class Span {
     && (std::__is_array_convertible<element_type, U>::value)
     explicit(Extent != dynamic_extent && N == dynamic_extent)
     constexpr Span(const Span<U, N>& source) noexcept
-    : data_(source.data()), storage(source.size()) {
+    : data_(source.Data()), storage(source.Size()) {
         if constexpr (Extent != dynamic_extent) {
-            MPC_VERIFY(Extent == source.size());
+            MPC_VERIFY(Extent == source.Size());
         }
     }
 
@@ -133,7 +130,7 @@ class Span {
 
     // Iterators
     constexpr iterator begin() const noexcept {
-        return data();
+        return Data();
     }
 
     constexpr const_iterator cbegin() const noexcept {
@@ -141,7 +138,7 @@ class Span {
     }
 
     constexpr iterator end() const noexcept {
-        return data() + size();
+        return Data() + Size();
     }
 
     constexpr const_iterator cend() const noexcept {
@@ -168,74 +165,66 @@ class Span {
     // Element access
     constexpr reference Front() const {
         MPC_VERIFY(!empty());
-        return *data();
+        return *Data();
     }
 
     constexpr reference Back() const {
         MPC_VERIFY(!empty());
-        return *(data() + size() - 1);
+        return *(Data() + Size() - 1);
     }
 
     constexpr reference at(size_type pos) const {
-        if (pos >= size()) {
+        if (pos >= Size()) {
             throw std::out_of_range("Invalid argument in at() method");
         }
-        return *(data() + pos);
+        return *(Data() + pos);
     }
 
     constexpr reference operator[](size_type idx) const {
-        MPC_VERIFY(idx < size());
-        return data()[idx];
+        MPC_VERIFY(idx < Size());
+        return Data()[idx];
     }
 
     constexpr pointer Data() const noexcept {
-        return data();
-    }
-
-    constexpr pointer data() const noexcept {
         return data_;
     }
 
 
     // Observers
     constexpr size_t Size() const noexcept {
-        return size();
-    }
-
-    constexpr size_t size() const noexcept {
-        return storage.size();
+        return storage.size();;
     }
 
     constexpr size_t size_bytes() const noexcept {
-        return size() * sizeof(element_type);
+        return Size() * sizeof(element_type);
     }
 
     constexpr bool empty() const noexcept {
-        return size() == 0;
+        return Size() == 0;
     }
 
 
     // Subviews
     template <size_t Count>
     constexpr Span<element_type, Count> First() const {
-        MPC_VERIFY(Count <= size());
-        return Span<element_type, Count>(data(), Count);
+        MPC_VERIFY(Count <= Size());
+        return Span<element_type, Count>(Data(), Count);
     }
 
     constexpr Span<element_type, dynamic_extent> First(size_type Count) const {
-        MPC_VERIFY(Count <= size());
-        return Span<element_type, dynamic_extent>(data(), Count);
+        MPC_VERIFY(Count <= Size());
+        return Span<element_type, dynamic_extent>(Data(), Count);
     }
 
     template <size_t Count>
     constexpr Span<element_type, Count> Last() const {
-        MPC_VERIFY(Count <= size());
-        return Span<element_type, Count>(data() + size() - Count, Count);
+        MPC_VERIFY(Count <= Size());
+        return Span<element_type, Count>(Data() + Size() - Count, Count);
     }
 
     constexpr Span<element_type, dynamic_extent> Last(size_type Count) const {
-        MPC_VERIFY(Count <= size());
-        return Span<element_type, dynamic_extent>(data() + size() - Count, Count);
+        MPC_VERIFY(Count <= Size());
+        return Span<element_type, dynamic_extent>(Data() + Size() - Count, Count);
     }
 
     template <size_t Offset, size_t Count>
@@ -251,21 +240,21 @@ class Span {
     
     template <size_t Offset, size_t Count = dynamic_extent>
     constexpr Span<element_type, subspan_extent<Offset, Count>> subspan() const {
-        MPC_VERIFY(Offset <= size());
+        MPC_VERIFY(Offset <= Size());
         if constexpr (Count == dynamic_extent) {
-            return Span<element_type, subspan_extent<Offset, Count>>(data() + Offset, size() - Offset);
+            return Span<element_type, subspan_extent<Offset, Count>>(Data() + Offset, Size() - Offset);
         }
-        MPC_VERIFY(Count <= size() - Offset);
-        return Span<element_type, subspan_extent<Offset, Count>>(data() + Offset, Count);
+        MPC_VERIFY(Count <= Size() - Offset);
+        return Span<element_type, subspan_extent<Offset, Count>>(Data() + Offset, Count);
     }
 
     constexpr Span<element_type, dynamic_extent> subspan(size_type Offset, size_type Count = dynamic_extent) const {
-        MPC_VERIFY(Offset <= size());
+        MPC_VERIFY(Offset <= Size());
         if (Count == dynamic_extent) {
-            return {data() + Offset, size() - Offset};
+            return {Data() + Offset, Size() - Offset};
         }
-        MPC_VERIFY(Count <= size() - Offset);
-        return {data() + Offset, Count};
+        MPC_VERIFY(Count <= Size() - Offset);
+        return {Data() + Offset, Count};
     }
 
   private:
@@ -274,19 +263,21 @@ class Span {
 };
 
 template <typename T, size_t N>
-Span<const std::byte, N == dynamic_extent ? dynamic_extent : N * sizeof(T)> as_bytes(Span<T, N> s) noexcept {
-    return {reinterpret_cast<const std::byte*>(s.data(), s.size_bytes()), s.size_bytes()};
+conditional_t<N == dynamic_extent, Span<const std::byte, dynamic_extent>, Span<const std::byte, N * sizeof(T)>>
+as_bytes(Span<T, N> s) noexcept {
+    return {reinterpret_cast<const std::byte*>(s.Data(), s.size_bytes()), s.size_bytes()};
 }
 
 template <typename T, size_t N>
-Span<std::byte, N == dynamic_extent ? dynamic_extent : N * sizeof(T)> as_writable_bytes(Span<T, N> s) noexcept {
-    return {reinterpret_cast<std::byte*>(s.data(), s.size_bytes()), s.size_bytes()};
+conditional_t<N == dynamic_extent, Span<std::byte, dynamic_extent>, Span<std::byte, N * sizeof(T)>>
+as_writable_bytes(Span<T, N> s) noexcept {
+    return {reinterpret_cast<std::byte*>(s.Data(), s.size_bytes()), s.size_bytes()};
 }
 
 // Deduction guides
 
 template <typename It, typename EndOrSize>
-Span(It, EndOrSize) -> Span<std::remove_reference_t<std::iter_reference_t<It>>>;
+Span(It, EndOrSize) -> Span<remove_reference_t<std::iter_reference_t<It>>>;
 
 template <typename T, size_t N>
 Span(T(&)[N]) -> Span<T, N>;
@@ -298,4 +289,4 @@ template <typename T, size_t N>
 Span(const std::array<T, N>&) -> Span<const T, N>;
 
 template <typename R>
-Span(R&&) -> Span<std::remove_reference_t<std::ranges::range_reference_t<R>>>;
+Span(R&&) -> Span<remove_reference_t<std::ranges::range_reference_t<R>>>;
