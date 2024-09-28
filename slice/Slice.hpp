@@ -10,79 +10,131 @@
 
 inline constexpr std::ptrdiff_t dynamic_stride = -1;
 
+// namespace helper {
+// template <typename T, size_t extent, std::ptrdiff_t stride>
+// struct fields_storage {
+// 	constexpr fields_storage(T* data, size_t, std::ptrdiff_t) noexcept
+//     : data_(data) {}
+
+//     constexpr bool operator==(const fields_storage& other) const {
+//         return Data() == other.Data() && Size() == other.Size() && Stride() == other.Stride();
+//     }
+
+//     constexpr T* Data() const { return data_; }
+// 	constexpr size_t Size() const  { return extent; }
+// 	constexpr std::ptrdiff_t Stride() const  { return stride; }
+
+//   private:
+//     T* data_;
+// };
+
+// template <typename T, std::ptrdiff_t stride>
+// struct fields_storage<T, std::dynamic_extent, stride> {
+// 	constexpr fields_storage(T* data, size_t size, std::ptrdiff_t) noexcept
+// 	: data_(data), size_(size) {}
+
+//     constexpr bool operator==(const fields_storage& other) const {
+//         return Data() == other.Data() && Size() == other.Size() && Stride() == other.Stride();
+//     }
+
+//     constexpr T* Data() const { return data_; }
+// 	constexpr size_t Size() const  { return size_; }
+// 	constexpr std::ptrdiff_t Stride() const  { return stride; }
+    
+//   private:
+//     T* data_;
+// 	size_t size_;
+// };
+
+// template <typename T, size_t extent>
+// struct fields_storage<T, extent, dynamic_stride> {
+// 	constexpr fields_storage(T* data, size_t, std::ptrdiff_t stride) noexcept
+// 	: data_(data), stride_(stride) {}
+
+//     constexpr bool operator==(const fields_storage& other) const {
+//         return Data() == other.Data() && Size() == other.Size() && Stride() == other.Stride();
+//     }
+
+//     constexpr T* Data() const { return data_; }
+// 	constexpr size_t Size() const  { return extent; };
+// 	constexpr std::ptrdiff_t Stride() const  { return stride_; };
+
+//   private:
+//     T* data_;
+// 	std::ptrdiff_t stride_;
+// };
+
+// template <typename T>
+// struct fields_storage<T, std::dynamic_extent, dynamic_stride> {
+// 	constexpr fields_storage(T* data, size_t size, std::ptrdiff_t stride) noexcept
+// 	: data_(data), size_(size), stride_(stride) {}
+
+//     constexpr bool operator==(const fields_storage& other) const {
+//         return Data() == other.Data() && Size() == other.Size() && Stride() == other.Stride();
+//     }
+
+//     constexpr T* Data() const { return data_; }
+// 	constexpr size_t Size() const  { return size_; };
+// 	constexpr std::ptrdiff_t Stride() const  { return stride_; };
+
+//   private:
+//     T* data_;
+// 	size_t size_;
+// 	std::ptrdiff_t stride_;
+// };
+// }
+
 namespace helper {
 template <typename T, size_t extent, std::ptrdiff_t stride>
 struct fields_storage {
-	constexpr fields_storage(T* data, size_t, std::ptrdiff_t) noexcept
-    : data_(data) {}
+    T* data_;
 
-    constexpr bool operator==(const fields_storage& other) const {
-        return Data() == other.Data() && Size() == other.Size() && Stride() == other.Stride();
-    }
-
+    constexpr fields_storage(T* data, size_t, std::ptrdiff_t) noexcept
+ 	: data_(data) {}
     constexpr T* Data() const { return data_; }
 	constexpr size_t Size() const  { return extent; }
-	constexpr std::ptrdiff_t Stride() const  { return stride; }
-
-  private:
-    T* data_;
+	constexpr std::ptrdiff_t Stride() const { return stride; }
 };
 
 template <typename T, std::ptrdiff_t stride>
 struct fields_storage<T, std::dynamic_extent, stride> {
-	constexpr fields_storage(T* data, size_t size, std::ptrdiff_t) noexcept
-	: data_(data), size_(size) {}
-
-    constexpr bool operator==(const fields_storage& other) const {
-        return Data() == other.Data() && Size() == other.Size() && Stride() == other.Stride();
-    }
-
-    constexpr T* Data() const { return data_; }
-	constexpr size_t Size() const  { return size_; }
-	constexpr std::ptrdiff_t Stride() const  { return stride; }
-    
-  private:
     T* data_;
 	size_t size_;
+
+    constexpr fields_storage(T* data, size_t size, std::ptrdiff_t) noexcept
+ 	: data_(data), size_(size) {}
+    constexpr T* Data() const { return data_; }
+	constexpr size_t Size() const  { return size_; }
+	constexpr std::ptrdiff_t Stride() const { return stride; }
 };
 
 template <typename T, size_t extent>
 struct fields_storage<T, extent, dynamic_stride> {
-	constexpr fields_storage(T* data, size_t, std::ptrdiff_t stride) noexcept
-	: data_(data), stride_(stride) {}
-
-    constexpr bool operator==(const fields_storage& other) const {
-        return Data() == other.Data() && Size() == other.Size() && Stride() == other.Stride();
-    }
-
-    constexpr T* Data() const { return data_; }
-	constexpr size_t Size() const  { return extent; };
-	constexpr std::ptrdiff_t Stride() const  { return stride_; };
-
-  private:
     T* data_;
 	std::ptrdiff_t stride_;
+
+    constexpr fields_storage(T* data, size_t, std::ptrdiff_t stride) noexcept
+ 	: data_(data), stride_(stride) {}
+    constexpr T* Data() const { return data_; }
+	constexpr size_t Size() const  { return extent; };
+	constexpr std::ptrdiff_t Stride() const { return stride_; };
 };
 
 template <typename T>
 struct fields_storage<T, std::dynamic_extent, dynamic_stride> {
-	constexpr fields_storage(T* data, size_t size, std::ptrdiff_t stride) noexcept
-	: data_(data), size_(size), stride_(stride) {}
-
-    constexpr bool operator==(const fields_storage& other) const {
-        return Data() == other.Data() && Size() == other.Size() && Stride() == other.Stride();
-    }
-
-    constexpr T* Data() const { return data_; }
-	constexpr size_t Size() const  { return size_; };
-	constexpr std::ptrdiff_t Stride() const  { return stride_; };
-
-  private:
     T* data_;
 	size_t size_;
 	std::ptrdiff_t stride_;
+
+    constexpr fields_storage(T* data, size_t size, std::ptrdiff_t stride) noexcept
+ 	: data_(data), size_(size), stride_(stride) {}
+    constexpr T* Data() const { return data_; }
+	constexpr size_t Size() const  { return size_; };
+	constexpr std::ptrdiff_t Stride() const { return stride_; };
 };
 }
+
+
 
 template <typename T, size_t extent = std::dynamic_extent, std::ptrdiff_t stride = 1>
 class Slice {
@@ -259,6 +311,13 @@ private:
 	helper::fields_storage<T, extent, stride> storage;
 };
 
+template <typename T, size_t N>
+Slice(std::array<T, N>&) -> Slice<T, N, 1>;
+
+template <typename T, size_t N>
+Slice(const std::array<T, N>&) -> Slice<const T, N, 1>;
+
+
 template <typename T, size_t extent, std::ptrdiff_t stride>
 template <bool IsConst>
 class Slice<T, extent, stride>::CommonIterator {
@@ -357,6 +416,8 @@ class Slice<T, extent, stride>::CommonIterator {
   private:
     pointer data_;
 };
+
+
 
 // int main() {
 // 	std::array<int, 42> arr{};
