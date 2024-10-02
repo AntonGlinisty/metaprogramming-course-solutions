@@ -90,9 +90,9 @@ class Slice {
 
 	template <std::contiguous_iterator It>
 	constexpr Slice(It first, size_type count, difference_type skip = stride)
-    : storage(std::to_address(first), count, skip) {
+    : storage(std::to_address(first), (count + skip - 1) / skip, skip) {
         if constexpr (extent != dynamic_extent) {
-            MPC_VERIFY(extent == count || extent == (count + skip - 1) / skip || extent == count / skip);
+            MPC_VERIFY(extent == (count + skip - 1) / skip || extent == count / skip);
         }
         if constexpr (stride != dynamic_stride) {
             MPC_VERIFY(stride == skip);
@@ -129,7 +129,7 @@ class Slice {
 
     template <typename U, size_type E, difference_type S>
     constexpr Slice(const Slice<U, E, S>& source)
-    : Slice(source.Data(), source.Size(), source.Stride()) {}
+    : storage(source.Data(), source.Size(), source.Stride()) {}
     
     constexpr Slice(const Slice& other) noexcept = default;
 
@@ -214,7 +214,7 @@ class Slice {
 
     // Observers
     constexpr size_type Size() const {
-		return storage.Size();
+        return storage.Size();
 	}
 
     constexpr bool empty() const noexcept {
@@ -226,62 +226,62 @@ class Slice {
 	constexpr Slice<element_type, dynamic_extent, stride>
     First(size_type count) const {
         MPC_VERIFY(count <= Size());
-        return {Data(), count, Stride()};
+        return {Data(), count * Stride(), Stride()};
     }
 
 	template <size_type count>
 	constexpr Slice<element_type, count, stride> First() const {
         MPC_VERIFY(count <= Size());
-        return {Data(), count, Stride()};
+        return {Data(), count * Stride(), Stride()};
     }
 
 	constexpr Slice<element_type, dynamic_extent, stride>
     Last(size_type count) const {
         MPC_VERIFY(count <= Size());
-        return {Data() + (Size() - count) * Stride(), count, Stride()};
+        return {Data() + (Size() - count) * Stride(), count * Stride(), Stride()};
     }
 
 	template <size_type count>
 	constexpr Slice<element_type, count, stride>
     Last() const {
         MPC_VERIFY(count <= Size());
-        return {Data() + (Size() - count) * Stride(), count, Stride()};
+        return {Data() + (Size() - count) * Stride(), count * Stride(), Stride()};
     }
 
 	constexpr Slice<element_type, dynamic_extent, stride>
     DropFirst(size_type count) const {
         MPC_VERIFY(count <= Size());
-        return {Data() + count * Stride(), Size() - count, Stride()};
+        return {Data() + count * Stride(), (Size() - count) * Stride(), Stride()};
     }
 
 	template <size_type count>
 	constexpr Slice<element_type, extent == dynamic_extent ? dynamic_extent : extent - count, stride>
     DropFirst() const {
         MPC_VERIFY(count <= Size());
-        return {Data() + count * Stride(), Size() - count, Stride()};
+        return {Data() + count * Stride(), (Size() - count) * Stride(), Stride()};
     }
 
 	constexpr Slice<element_type, dynamic_extent, stride>
 	DropLast(size_type count) const {
         MPC_VERIFY(count <= Size());
-        return {Data(), Size() - count, Stride()};
+        return {Data(), (Size() - count) * Stride(), Stride()};
     }
 
 	template <size_type count>
 	constexpr Slice<element_type, extent == dynamic_extent ? dynamic_extent : extent - count, stride>
 	DropLast() const {
         MPC_VERIFY(count <= Size());
-        return {Data(), Size() - count, Stride()};
+        return {Data(), (Size() - count) * Stride(), Stride()};
     }
 
 	auto Skip(ptrdiff_t skip) -> Slice<element_type, dynamic_extent, dynamic_stride> const {
-        return {Data(), (Size() + skip - 1) / skip, Stride() * skip};
+        return {Data(), Size() * Stride(), Stride() * skip};
     }
 
 	template <ptrdiff_t skip>
     Slice<element_type, extent == dynamic_extent ? dynamic_extent : (extent + skip - 1) / skip,
             stride == dynamic_stride ? dynamic_stride : stride * skip> Skip() const {
-        return {Data(), (Size() + skip - 1) / skip, Stride() * skip};
+        return {Data(), Size() * Stride(), Stride() * skip};
     }
 
 private:
@@ -419,12 +419,3 @@ class Slice<T, extent, stride>::CommonIterator {
     pointer data_;
     const Slice<T, extent, stride>* slice_;
 };
-
-
-// int main() {
-// 	std::array<int, 42> arr{};
-//     std::iota(arr.begin(), arr.end(), 0);
-
-
-//     Slice all(arr);
-// }
