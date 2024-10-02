@@ -92,7 +92,10 @@ class Slice {
 	constexpr Slice(It first, size_type count, difference_type skip = stride)
     : storage(std::to_address(first), count, skip) {
         if constexpr (extent != dynamic_extent) {
-            MPC_VERIFY(extent == count);
+            MPC_VERIFY(extent == count || extent == (count + skip - 1) / skip || extent == count / skip);
+        }
+        if constexpr (stride != dynamic_stride) {
+            MPC_VERIFY(stride == skip);
         }
     }
 
@@ -100,11 +103,7 @@ class Slice {
     requires (!std::is_convertible_v<End, size_type>)
     constexpr Slice(It first, End last, difference_type skip)
     noexcept(noexcept(last - first))
-    : storage(std::to_address(first), last - first, skip) {
-        if constexpr (extent != dynamic_extent) {
-            MPC_VERIFY(extent == last - first);
-        }
-    }
+    : Slice(first, last - first, skip) {}
 
     template <size_t N>
     requires (extent == N || extent == dynamic_extent)
@@ -126,19 +125,11 @@ class Slice {
     && (std::ranges::borrowed_range<R> || std::is_const_v<element_type>)
 	&& (!std::is_array_v<std::remove_cvref_t<R>>)
     constexpr Slice(R&& range, ptrdiff_t step = stride)
-    : Slice(std::ranges::data(range), std::ranges::size(range), step) {
-        if constexpr (extent != dynamic_extent) {
-            MPC_VERIFY(extent == std::ranges::size(range));
-        }
-    }
+    : Slice(std::ranges::data(range), std::ranges::size(range), step) {}
 
     template <typename U, size_type E, difference_type S>
     constexpr Slice(const Slice<U, E, S>& source)
-    : storage(source.Data(), source.Size(), source.Stride()) {
-        if constexpr (extent != dynamic_extent) {
-            MPC_VERIFY(extent == source.Size());
-        }
-    }
+    : Slice(source.Data(), source.Size(), source.Stride()) {}
     
     constexpr Slice(const Slice& other) noexcept = default;
 
@@ -339,7 +330,7 @@ class Slice<T, extent, stride>::CommonIterator {
     }
 
     CommonIterator& operator++() {
-        data_ += slice_->Stride();
+        this->operator+=(1);
         return *this;
     }
 
@@ -350,7 +341,7 @@ class Slice<T, extent, stride>::CommonIterator {
     }
 
     CommonIterator& operator--() {
-        data_ -= slice_->Stride();
+        this->operator-=(1);
         return *this;
     }
 
@@ -361,6 +352,7 @@ class Slice<T, extent, stride>::CommonIterator {
     }
 
     CommonIterator& operator+=(difference_type value) {
+        MPC_VERIFY(data_ + slice_->Stride() * value <= slice_->end().data_);
         data_ += slice_->Stride() * value;
         return *this;
     }
@@ -375,6 +367,7 @@ class Slice<T, extent, stride>::CommonIterator {
     }
 
     CommonIterator& operator-=(difference_type value) {
+        MPC_VERIFY(data_ - slice_->Stride() * value >= slice_->begin().data_);
         data_ -= slice_->Stride() * value;
         return *this;
     }
@@ -394,6 +387,7 @@ class Slice<T, extent, stride>::CommonIterator {
     }
 
     difference_type operator-(const CommonIterator& other) const {
+        MPC_VERIFY(slice_->Stride() == other.slice_->Stride());
         return (data_ - other.data_) / slice_->Stride();
     }
 
