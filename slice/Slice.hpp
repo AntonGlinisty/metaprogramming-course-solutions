@@ -88,46 +88,63 @@ class Slice {
     : storage(0, 0) {}
 
 	template <std::contiguous_iterator It>
-	constexpr Slice(It first, size_type count, difference_type skip)
-    : storage(std::to_address(first), count, skip) {}
+	constexpr Slice(It first, size_type count, difference_type skip = stride)
+    : storage(std::to_address(first), count, skip) {
+        if constexpr (extent != dynamic_extent) {
+            MPC_VERIFY(extent == count);
+        }
+    }
 
     template <std::contiguous_iterator It, std::sized_sentinel_for<It> End>
     requires (!std::is_convertible_v<End, size_type>)
     constexpr Slice(It first, End last, difference_type skip)
     noexcept(noexcept(last - first))
-    : storage(std::to_address(first), last - first, skip) {}
+    : storage(std::to_address(first), last - first, skip) {
+        if constexpr (extent != dynamic_extent) {
+            MPC_VERIFY(last - first == count);
+        }
+    }
 
     template <size_t N>
     requires (extent == N || extent == dynamic_extent)
-    constexpr Slice(std::type_identity_t<element_type> (&arr)[N]) noexcept
-        : Slice(static_cast<pointer>(arr), N, 1) {}
+    constexpr Slice(std::type_identity_t<element_type> (&arr)[N], ptrdiff_t step = stride) noexcept
+        : Slice(static_cast<pointer>(arr), N, step) {}
 
     template <typename U, size_t N>
     requires (extent == N || extent == dynamic_extent)
-    constexpr Slice(std::array<U, N>& arr) noexcept
-        : Slice(static_cast<pointer>(arr.data()), N, 1) {}
+    constexpr Slice(std::array<U, N>& arr, ptrdiff_t step = stride) noexcept
+        : Slice(static_cast<pointer>(arr.data()), N, step) {}
 
-    template <size_t N>
+    template <typename U, size_t N>
     requires (extent == N || extent == dynamic_extent)
-    constexpr Slice(const std::array<element_type, N>& arr) noexcept
-        : Slice(static_cast<const pointer>(arr.data()), N, 1) {}
+    constexpr Slice(const std::array<U, N>& arr, ptrdiff_t step = stride) noexcept
+        : Slice(static_cast<const pointer>(arr.data()), N, step) {}
 
     template <typename R>
     requires (std::ranges::contiguous_range<R> && std::ranges::sized_range<R>)
     && (std::ranges::borrowed_range<R> || std::is_const_v<element_type>)
 	&& (!std::is_array_v<std::remove_cvref_t<R>>)
-    constexpr Slice(R&& range)
-    : Slice(std::ranges::data(range), std::ranges::size(range), 1) {}
+    constexpr Slice(R&& range, ptrdiff_t step = stride)
+    : Slice(std::ranges::data(range), std::ranges::size(range), step) {
+        if constexpr (extent != dynamic_extent) {
+            MPC_VERIFY(extent == std::ranges::size(range));
+        }
+    }
 
     template <typename U, size_type E, difference_type S>
     constexpr Slice(const Slice<U, E, S>& source) noexcept
-    : storage(source.Data(), source.Size(), source.Stride()) {}
+    : storage(source.Data(), source.Size(), source.Stride()) {
+        if constexpr (extent != dynamic_extent) {
+            MPC_VERIFY(extent == source.Size());
+        }
+    }
     
     constexpr Slice(const Slice& other) noexcept = default;
 
     constexpr Slice& operator=(const Slice& other) noexcept = default;
 
     ~Slice() noexcept = default;
+
 
     template <typename U, size_type E, difference_type S>
     constexpr bool operator==(const Slice<U, E, S>& other) const {
@@ -185,10 +202,12 @@ class Slice {
     }
 
     constexpr reference Front() const {
+        MPC_VERIFY(!empty());
         return operator[](0);
     }
 
     constexpr reference Back() const {
+        MPC_VERIFY(!empty());
         return operator[](Size() - 1);
     }
 
@@ -214,44 +233,52 @@ class Slice {
     // Subviews
 	constexpr Slice<element_type, dynamic_extent, stride>
     First(size_type count) const {
+        MPC_VERIFY(count <= Size());
         return {Data(), count, Stride()};
     }
 
 	template <size_type count>
 	constexpr Slice<element_type, count, stride> First() const {
+        MPC_VERIFY(count <= Size());
         return {Data(), count, Stride()};
     }
 
 	constexpr Slice<element_type, dynamic_extent, stride>
     Last(size_type count) const {
+        MPC_VERIFY(count <= Size());
         return {Data() + (Size() - count) * Stride(), count, Stride()};
     }
 
 	template <size_type count>
 	constexpr Slice<element_type, count, stride>
     Last() const {
+        MPC_VERIFY(count <= Size());
         return {Data() + (Size() - count) * Stride(), count, Stride()};
     }
 
 	constexpr Slice<element_type, dynamic_extent, stride>
     DropFirst(size_type count) const {
+        MPC_VERIFY(count <= Size());
         return {Data() + count * Stride(), Size() - count, Stride()};
     }
 
 	template <size_type count>
 	constexpr Slice<element_type, extent == dynamic_extent ? dynamic_extent : extent - count, stride>
     DropFirst() const {
+        MPC_VERIFY(count <= Size());
         return {Data() + count * Stride(), Size() - count, Stride()};
     }
 
 	constexpr Slice<element_type, dynamic_extent, stride>
 	DropLast(size_type count) const {
+        MPC_VERIFY(count <= Size());
         return {Data(), Size() - count, Stride()};
     }
 
 	template <size_type count>
 	constexpr Slice<element_type, extent == dynamic_extent ? dynamic_extent : extent - count, stride>
 	DropLast() const {
+        MPC_VERIFY(count <= Size());
         return {Data(), Size() - count, Stride()};
     }
 
