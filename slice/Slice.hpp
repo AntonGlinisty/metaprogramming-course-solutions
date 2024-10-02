@@ -322,12 +322,14 @@ class Slice<T, extent, stride>::CommonIterator {
     using reference = std::conditional_t<IsConst, const T, T>&;
     using difference_type = ptrdiff_t;
 
+    CommonIterator() = default;
+
     CommonIterator(T* ptr, const Slice<T, extent, stride>* slice) noexcept
     : data_(ptr), slice_(slice) {}
     
     CommonIterator(const CommonIterator& other) = default;
 
-    value_type operator*() const {
+    reference operator*() const {
         return *data_;
     }
 
@@ -357,27 +359,36 @@ class Slice<T, extent, stride>::CommonIterator {
         return old;
     }
 
-    CommonIterator& operator+=(int value) {
+    CommonIterator& operator+=(difference_type value) {
         data_ += slice_->Stride() * value;
         return *this;
     }
 
-    CommonIterator operator+(int value) const {
+    CommonIterator operator+(difference_type value) const {
         CommonIterator it = *this;
         return it += value;
     }
 
-    CommonIterator& operator-=(int value) {
+    friend CommonIterator operator+(difference_type value, CommonIterator<IsConst> iter) {
+        return iter + value;
+    }
+
+    CommonIterator& operator-=(difference_type value) {
         data_ -= slice_->Stride() * value;
         return *this;
     }
 
-    CommonIterator operator-(int value) const {
+    CommonIterator operator-(difference_type value) const {
         CommonIterator it = *this;
         return it -= value;
     }
 
-    reference operator[](int value) const {
+    friend CommonIterator operator-(difference_type value, CommonIterator<IsConst> iter) {
+        return iter - value;
+    }
+
+
+    reference operator[](difference_type value) const {
         return *(data_ + slice_->Stride() * value);
     }
 
@@ -413,7 +424,6 @@ class Slice<T, extent, stride>::CommonIterator {
     pointer data_;
     const Slice<T, extent, stride>* slice_;
 };
-
 
 
 // int main() {
