@@ -1,3 +1,4 @@
+#include "lib/assert.hpp"
 #include <cstddef>
 #include <span>
 #include <concepts>
@@ -132,7 +133,7 @@ class Slice {
     }
 
     template <typename U, size_type E, difference_type S>
-    constexpr Slice(const Slice<U, E, S>& source) noexcept
+    constexpr Slice(const Slice<U, E, S>& source)
     : storage(source.Data(), source.Size(), source.Stride()) {
         if constexpr (extent != dynamic_extent) {
             MPC_VERIFY(extent == source.Size());
