@@ -76,7 +76,7 @@ struct CommonHelpers {
         return ((Storage<Enum, 0, LOWERSIZE>{} + 0) + ... + indices);
     }
 
-    static constexpr Storage<Enum, SIZE - 1, LOWERSIZE> generator = generate(std::make_index_sequence<SIZE - 1>{});
+    static constexpr Storage<Enum, SIZE, LOWERSIZE> generator = generate(std::make_index_sequence<SIZE - 1>{});
 
 };
 } // namespace ::detail 
