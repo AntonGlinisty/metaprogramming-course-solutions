@@ -23,7 +23,7 @@ constexpr int IsEnumField(const std::string_view& pretty) {
 
 template <class Enum, int64_t Number, int64_t Decrement>
 struct Storage {
-    std::array<int64_t, Number> arr;
+    std::array<int64_t, Number> arr{};
     std::size_t real_size = 0;
 
     constexpr Storage<Enum, Number + 1, Decrement> operator+(std::size_t) const {
@@ -44,8 +44,10 @@ template <class Enum, std::size_t MAXN>
 struct CommonHelpers {
     using UnderType = std::underlying_type_t<Enum>;
 
-    static constexpr int64_t UPPERSIZE = std::min(static_cast<int>(MAXN), static_cast<int>(std::numeric_limits<UnderType>::max()));
-    static constexpr int64_t LOWERSIZE = std::max(static_cast<int>(-MAXN), static_cast<int>(std::numeric_limits<UnderType>::min()));
+    static constexpr int64_t UPPERSIZE = MAXN < std::numeric_limits<UnderType>::max()
+        ? MAXN : std::numeric_limits<UnderType>::max();
+    static constexpr int64_t LOWERSIZE = -MAXN > std::numeric_limits<UnderType>::min()
+        ? -MAXN : std::numeric_limits<UnderType>::min();
 
     static constexpr std::size_t SIZE = UPPERSIZE - LOWERSIZE + 1;
 
@@ -76,7 +78,8 @@ struct CommonHelpers {
         return ((Storage<Enum, 0, LOWERSIZE>{} + 0) + ... + indices);
     }
 
-    static constexpr Storage<Enum, SIZE, LOWERSIZE> generator = generate(std::make_index_sequence<SIZE - 1>{});
+    static constexpr Storage<Enum, SIZE, LOWERSIZE> generator =
+        generate(std::make_index_sequence<SIZE - 1>{});
 
 };
 } // namespace ::detail 
