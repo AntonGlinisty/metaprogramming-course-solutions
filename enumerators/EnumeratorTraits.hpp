@@ -9,9 +9,20 @@
 #include <string_view>
 #include <utility>
 #include <ranges>
+#include <limits>
+
+
+enum class Shape { // : int
+    SQUARE, CIRCLE = 5, LINE, POINT = -2
+};
 
 
 namespace detail {
+
+constexpr std::string_view PrePattern = "EnumObject = ";
+constexpr std::string_view DoubleColon = "::";
+constexpr std::string_view SemiColon = ";";
+constexpr std::string_view Bracket = "(";
 
 template <auto EnumObject>
 constexpr std::string_view helper() { return __PRETTY_FUNCTION__; }
@@ -21,19 +32,31 @@ constexpr int IsEnumField(const std::string_view& pretty) {
     return pretty.find(pattern) == std::string_view::npos;
 }
 
+static constexpr std::string_view Parse(const std::string_view& pattern) {
+    int index = pattern.find(PrePattern);
+    std::string_view result = pattern.substr(index, pattern.size() - index);
+    int DC_index = result.find(DoubleColon);
+    int SC_index = result.find(SemiColon);
+    return result.substr(DC_index + DoubleColon.size(), SC_index - DC_index - DoubleColon.size());
+        
+}
+
 template <class Enum, int64_t Number, int64_t Decrement>
 struct Storage {
-    std::array<int64_t, Number> arr{};
+    std::array<std::string_view, Number> names{};
+    std::array<int64_t, Number> values{};
     std::size_t real_size = 0;
 
     constexpr Storage<Enum, Number + 1, Decrement> operator+(std::size_t) const {
         Storage<Enum, Number + 1, Decrement> result;
         
-        std::copy(arr.begin(), arr.begin() + real_size, result.arr.begin());
+        std::copy(names.begin(), names.begin() + real_size, result.names.begin());
+        std::copy(values.begin(), values.begin() + real_size, result.values.begin());
         result.real_size = real_size;
 
         if constexpr(IsEnumField(helper<static_cast<Enum>(Number + Decrement)>())) {
-            result.arr[real_size] = Number + Decrement;
+            result.values[real_size] = Number + Decrement;
+            result.names[real_size] = Parse(helper<static_cast<Enum>(Number + Decrement)>());
             ++result.real_size;
         }
         return result;
@@ -80,7 +103,6 @@ struct CommonHelpers {
 
     static constexpr Storage<Enum, SIZE, LOWERSIZE> generator =
         generate(std::make_index_sequence<SIZE - 1>{});
-
 };
 } // namespace ::detail 
 
@@ -92,8 +114,10 @@ struct EnumeratorTraits {
     }
 
     static constexpr Enum at(std::size_t index) noexcept {
-        return static_cast<Enum>(detail::CommonHelpers<Enum, MAXN>::generator.arr[index]);
+        return Enum(detail::CommonHelpers<Enum, MAXN>::generator.values[index]);
     };
 
-    // static constexpr std::string_view nameAt(std::size_t i) noexcept;
+    static constexpr std::string_view nameAt(std::size_t index) noexcept {
+        return detail::CommonHelpers<Enum, MAXN>::generator.names[index];
+    }
 };
