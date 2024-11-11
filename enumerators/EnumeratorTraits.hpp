@@ -16,24 +16,22 @@ namespace detail {
 
 constexpr std::string_view PrePattern = "EnumObject = ";
 constexpr std::string_view DoubleColon = "::";
-constexpr std::string_view SemiColon = ";";
-constexpr std::string_view Bracket = "(";
+constexpr std::string_view Closure = "]";
 
 template <auto EnumObject>
 constexpr std::string_view helper() { return __PRETTY_FUNCTION__; }
 
+static constexpr std::string_view ParseName(const std::string_view& pattern) {
+    int start = pattern.find(PrePattern);
+    std::string_view result = pattern.substr(start, pattern.size() - start);
+    int mid = result.find(DoubleColon);
+    int end = result.find(Closure);
+    return result.substr(mid + DoubleColon.size(), end - mid - DoubleColon.size());   
+}
+
 constexpr int IsEnumField(const std::string_view& pretty) {
     constexpr std::string_view pattern = "EnumObject = ("; 
     return pretty.find(pattern) == std::string_view::npos;
-}
-
-static constexpr std::string_view Parse(const std::string_view& pattern) {
-    int index = pattern.find(PrePattern);
-    std::string_view result = pattern.substr(index, pattern.size() - index);
-    int DC_index = result.find(DoubleColon);
-    int SC_index = result.find(SemiColon);
-    return result.substr(DC_index + DoubleColon.size(), SC_index - DC_index - DoubleColon.size());
-        
 }
 
 template <class Enum, int64_t Number, int64_t Decrement>
@@ -51,7 +49,7 @@ struct Storage {
 
         if constexpr(IsEnumField(helper<static_cast<Enum>(Number + Decrement)>())) {
             result.values[real_size] = Number + Decrement;
-            result.names[real_size] = Parse(helper<static_cast<Enum>(Number + Decrement)>());
+            result.names[real_size] = ParseName(helper<static_cast<Enum>(Number + Decrement)>());
             ++result.real_size;
         }
         return result;
