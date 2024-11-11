@@ -12,11 +12,6 @@
 #include <limits>
 
 
-enum class Shape { // : int
-    SQUARE, CIRCLE = 5, LINE, POINT = -2
-};
-
-
 namespace detail {
 
 constexpr std::string_view PrePattern = "EnumObject = ";
